@@ -78,30 +78,6 @@ namespace QRCodeScannerLib
 		}
 		#endregion
 
-		#region エンコード[Encoding]プロパティ
-		/// <summary>
-		/// エンコード[Encoding]プロパティ用変数
-		/// </summary>
-		Encoding _Encoding = Encoding.GetEncoding("shift-jis");
-		/// <summary>
-		/// エンコード[Encoding]プロパティ
-		/// </summary>
-		public Encoding Encoding
-		{
-			get
-			{
-				return _Encoding;
-			}
-			set
-			{
-				if (_Encoding == null || !_Encoding.Equals(value))
-				{
-					_Encoding = value;
-				}
-			}
-		}
-		#endregion
-
 		#region シリアル通信用オブジェクト[SerialPort]プロパティ
 		/// <summary>
 		/// シリアル通信用オブジェクト[SerialPort]プロパティ用変数
@@ -139,10 +115,9 @@ namespace QRCodeScannerLib
 		/// </summary>
 		/// <param name="com_port">COMポート</param>
 		/// <param name="enc">エンコード</param>
-		public ScannerManager(int com_port, Encoding enc)
+		public ScannerManager(int com_port)
 		{
 			this.ComPort = com_port;    // COMポートの設定
-			this.Encoding = enc;        // エンコードの設定
 		}
 		#endregion
 
