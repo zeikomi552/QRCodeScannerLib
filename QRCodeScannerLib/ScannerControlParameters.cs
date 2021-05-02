@@ -9,6 +9,11 @@ namespace QRCodeScannerLib
     public class ScannerControlParameters
     {
         /// <summary>
+        /// キャリッジリターン
+        /// </summary>
+        public static char CR = Convert.ToChar(0x0d);
+
+        /// <summary>
         /// 読み取り待機
         /// トリガスイッチが連続読み取りモード 1 または 2 に設定されている時に限り、「Z」、「READOFF」、「LOFF」コマンドが受信されるとスキャナは読み取り待機状態に入ります。
         /// </summary>

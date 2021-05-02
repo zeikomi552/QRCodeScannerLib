@@ -16,10 +16,7 @@ namespace QRCodeScannerLib
 	}
 	public class ScannerManager
 	{
-		/// <summary>
-		/// キャリッジリターン
-		/// </summary>
-		public static char CR = Convert.ToChar(0x0d);
+
 		#region Connect状態かどうかを表すフラグ(true:接続中 false:未接続)[IsConnect]プロパティ
 		/// <summary>
 		/// Connect状態かどうかを表すフラグ(true:接続中 false:未接続)[IsConnect]プロパティ用変数
@@ -143,17 +140,22 @@ namespace QRCodeScannerLib
 		/// <param name="com_port">COMポート</param>
 		/// <param name="enc">エンコード</param>
 		public ScannerManager(int com_port, Encoding enc)
-        {
-			this.ComPort = com_port;	// COMポートの設定
-			this.Encoding = enc;		// エンコードの設定
-        }
+		{
+			this.ComPort = com_port;    // COMポートの設定
+			this.Encoding = enc;        // エンコードの設定
+		}
 		#endregion
 
 		#region AT(ハンディスキャナ)接続処理
+		///// <summary>
+		///// AT(ハンディスキャナ)接続処理
+		///// </summary>
 		/// <summary>
 		/// AT(ハンディスキャナ)接続処理
 		/// </summary>
-		public void Connect()
+		/// <param name="mode">モード指定(デフォルト：オートオフモード)</param>
+		/// <param name="wait">設定毎の安定までの待ち時間：100ミリ秒×3回</param>
+		public void Connect(string mode = "U1", int wait = 100)
 		{
 			try
 			{
@@ -167,13 +169,14 @@ namespace QRCodeScannerLib
 				this._SerialPort.RtsEnable = true;  // RTSの有効化
 
 				this.IsConnect = true;  // 接続中に変更
-				System.Threading.Thread.Sleep(100); // 通信安定まで一瞬待つ
+				System.Threading.Thread.Sleep(wait); // 通信安定まで一瞬待つ
+
+				// モードのセット
+				ModeSet(mode, wait);
 			}
 			catch
 			{
 				this.SerialPort.Close();
-				this.SerialPort.Dispose();
-				this.SerialPort = null;
 				this.IsConnect = false;  // 未接続に変更
 				throw;
 			}
@@ -191,6 +194,26 @@ namespace QRCodeScannerLib
 				if (this.SerialPort != null)
 				{
 					this.SerialPort.Close();
+					this.IsConnect = false;  // 未接続に変更
+				}
+			}
+			catch
+			{
+				throw;
+			}
+		}
+		#endregion
+
+		#region オブジェクトの破棄
+		/// <summary>
+		/// オブジェクトの破棄
+		/// </summary>
+		public void Dispose()
+        {
+			try
+			{
+				if (this.SerialPort != null)
+				{
 					this.SerialPort.Dispose();
 					this.SerialPort = null;
 					this.IsConnect = false;  // 未接続に変更
@@ -209,29 +232,29 @@ namespace QRCodeScannerLib
 		/// </summary>
 		/// <param name="mode">U1～U8のScannerControlParameters.TriggerSwitchControl以下のモードを指定します</param>
 		/// <param name="wait">設定後の安定までの待ち時間(ミリ秒)</param>
-		public void ModeSet(string mode, int wait=100)
+		public void ModeSet(string mode, int wait = 100)
 		{
 			try
-            {
-				this._SerialPort.WriteLine(mode + ScannerManager.CR);
+			{
+				this._SerialPort.WriteLine(mode.ToString() + ScannerControlParameters.CR);
 				System.Threading.Thread.Sleep(wait);
 
-				this._SerialPort.WriteLine(ScannerControlParameters.WaitForRead.Z + ScannerManager.CR);
+				this._SerialPort.WriteLine(WaitForRead.Z + ScannerControlParameters.CR);
 				System.Threading.Thread.Sleep(wait);
 
-				this._SerialPort.WriteLine(ScannerControlParameters.ReadEnable.R + ScannerManager.CR);
+				this._SerialPort.WriteLine(ReadEnable.R + ScannerControlParameters.CR);
 
 				// シリアルポート上に残っているバッファをクリア
 				BufferClear();
 			}
 			catch
-            {
+			{
 				this.SerialPort.Close();
 				this.SerialPort.Dispose();
 				this.SerialPort = null;
 				this.IsConnect = false;  // 未接続に変更
 				throw;
-            }
+			}
 		}
 		#endregion
 
@@ -245,11 +268,16 @@ namespace QRCodeScannerLib
 		}
 		#endregion
 
-
+		#region 末尾のキャリッジリターンを削除
+		/// <summary>
+		/// 末尾のキャリッジリターンを削除
+		/// </summary>
+		/// <param name="msg">受信データ</param>
+		/// <returns>キャリッジリターンの削除</returns>
 		private static string TrimCarriageReturn(string msg)
 		{
 
-			if (msg.Length > 0 && msg.Substring(msg.Length - 1).Equals(ScannerManager.CR))
+			if (msg.Length > 0 && msg.Substring(msg.Length - 1).Equals(ScannerControlParameters.CR.ToString()))
 			{
 				return msg.Substring(0, msg.Length - 1);
 			}
@@ -258,14 +286,16 @@ namespace QRCodeScannerLib
 				return msg;
 			}
 		}
-		#region イベント処理
-		/// <summary>
-		/// イベント処理
-		/// </summary>
-		/// <param name="sender"></param>
-		/// <param name="e"></param>
-		private void _SerialPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
-        {
+        #endregion
+
+        #region イベント処理
+        /// <summary>
+        /// イベント処理
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void _SerialPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
+		{
 			if (this.DataReceived != null)
 			{
 				int index = 0;
@@ -281,12 +311,12 @@ namespace QRCodeScannerLib
 					string tmp_msg = this.SerialPort.ReadExisting();
 					msg = msg + tmp_msg;    // 文字列の結合
 
-                    if (tmp_msg.Length > 0 && tmp_msg.Substring(tmp_msg.Length - 1).Equals(this.CR))
-                    {
-                        bFind = true;
-                    }
-                    else
-                    {
+					if (tmp_msg.Length > 0 && tmp_msg.Substring(tmp_msg.Length - 1).Equals(ScannerControlParameters.CR))
+					{
+						bFind = true;
+					}
+					else
+					{
 						// キャリッジリターンを見つけた && 取得した文字列が空
 						if (bFind && string.IsNullOrEmpty(tmp_msg))
 						{
@@ -296,14 +326,8 @@ namespace QRCodeScannerLib
 							ScannerDataRecieveEventArgs args = new ScannerDataRecieveEventArgs();
 							args.OrignalArgs = e;
 
-							if (msg.Length > 0 && msg.Substring(msg.Length - 1).Equals(this.CR))
-							{
-								args.Message = msg.Substring(0, msg.Length - 1);
-							}
-							else
-                            {
-								args.Message = msg;
-							}
+							// キャリッジリターンの削除
+							args.Message = TrimCarriageReturn(msg);
 
 							if (this.DataReceived != null)
 							{
@@ -316,14 +340,17 @@ namespace QRCodeScannerLib
 						{
 							bFind = false;
 						}
-                    }
+					}
 
 					// リトライ回数が規定を超えた場合強制的に抜ける
 					if (index >= 10)
 					{
 						ScannerDataRecieveEventArgs args = new ScannerDataRecieveEventArgs();
 						args.OrignalArgs = e;
-						args.Message = msg;
+
+						// キャリッジリターンの削除
+						args.Message = TrimCarriageReturn(msg);
+
 						if (this.DataReceived != null)
 						{
 							this.DataReceived(sender, args);
@@ -345,7 +372,7 @@ namespace QRCodeScannerLib
 		/// <returns>連結したデータ</returns>
 		private string GetRecieveData(string msg)
 		{
-			int index = msg.IndexOf(this.CR);
+			int index = msg.IndexOf(ScannerControlParameters.CR);
 
 			if (index >= 0 && index + 1 < msg.Length)
 			{
